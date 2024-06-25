@@ -1,4 +1,4 @@
-FROM nginx:1.18
+FROM nginx:stable-alpine3.19-slim
 
 WORKDIR /usr/local/bin
 COPY . /usr/local/bin
