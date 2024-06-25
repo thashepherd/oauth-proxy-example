@@ -1,0 +1,7 @@
+.ruff_cache
+.gitignore
+.git
+.history
+Dockerfile
+docker-compose.yml
+.dockerignore

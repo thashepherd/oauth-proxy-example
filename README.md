@@ -1,14 +1,17 @@
-Example for securing applications behind Keycloak SSO.
+This is an example for securing applications behind Keycloak SSO.
+
+All credit for writing this example goes to layandreas. This fork does the same thing, but builds faster and produces an image that's half the size.
 
 # Getting Started
 
-**Note: Depending on your system you will need to change the `oauth2-proxy` binary in the Dockerfile. It is set as `oauth2-proxy-v7.4.0.linux-arm64.tar.gz` which will work with ARM Macs.**
+**Note: When running locally, you may need to change the `oauth2-proxy` binary in the Dockerfile to one that works on your machine from the [oauth2-proxy releases page](https://github.com/oauth2-proxy/oauth2-proxy/releases).**
+
+**Note: The provided Keycloak config in /h2 is specific to Keycloak 21.1.1 and will not work with more recent versions.**
 
 Use `docker compose` to build and run the containers:
 
 ```bash
-docker compose build
-docker compose up
+docker compose up --build
 ```
 
 Then navigate to `localhost/app1` or `localhost/app2` to start the authentication flow. The login user and password are both set to "test":
