@@ -8,23 +8,26 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 ENV SERVICE_NAME=oauth-secured-app
 ENV APPLICATION_DIRECTORY=/home/$SERVICE_NAME/app
-ENV OAUTH_EXTRACT_DIR=/home/extra
 
 RUN apt-get update -qqy \
     && apt-get -qqy upgrade \
     && apt-get install -qqy wget default-jre-headless \
     && apt-get clean
 
-FROM alpine AS oauth-base
+# Create user + home directory
+RUN useradd --create-home --shell /bin/bash --uid 1001 $SERVICE_NAME
 
-WORKDIR $OAUTH_EXTRACT_DIR
 
-RUN --mount=type=cache,target=/root/.cache \
-    wget https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v7.6.0/oauth2-proxy-v7.6.0.linux-arm64.tar.gz \
+# Download & extract oauth2-proxy
+FROM alpine AS oauth2-proxy-base
+
+# TODO deduplicate usage of oauth2-proxy filename & path / tie more explicitly to supervisord.conf
+RUN wget https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v7.6.0/oauth2-proxy-v7.6.0.linux-arm64.tar.gz \
     && tar xvzf oauth2-proxy-v7.6.0.linux-arm64.tar.gz \
     && rm oauth2-proxy-v7.6.0.linux-arm64.tar.gz
 
 # Install Poetry & application dependencies
+# This is kept as a separate base image since many similar applications don't use Poetry in their entrypoint and thus can exclude it from the final image
 FROM python-base AS poetry-base
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
@@ -35,32 +38,28 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 
 WORKDIR $APPLICATION_DIRECTORY
 
-RUN apt-get update -qqy \
-    && apt-get -qqy upgrade \
-    && apt-get install -qqy curl \
+RUN apt-get install -qqy curl \
     && apt-get clean
 RUN --mount=type=cache,target=/root/.cache \
     curl -sSL https://install.python-poetry.org | python -
-RUN poetry env use 3.12
 
 COPY /poetry.lock /pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache \
     poetry install --only main
 
+
 # Application
 FROM keycloak/keycloak:21.1.1 AS keycloak
-FROM python-base AS application
+FROM poetry-base AS application
 
 ENV KEYCLOAK_ADMIN=admin \
     KEYCLOAK_ADMIN_PASSWORD=admin
 
 WORKDIR $APPLICATION_DIRECTORY
 
-# Create user + home directory
-RUN useradd --create-home --shell /bin/bash --uid 1001 $SERVICE_NAME
-
 # Copy Oauth2-proxy stuff
-COPY --from=oauth-base --chown=$SERVICE_NAME $OAUTH_EXTRACT_DIR .
+COPY --from=oauth2-proxy-base --chown=$SERVICE_NAME /oauth2-proxy-v7.6.0.linux-arm64/oauth2-proxy /oauth2-proxy-v7.6.0.linux-arm64/oauth2-proxy
+RUN chown -R $SERVICE_NAME /oauth2-proxy-v7.6.0.linux-arm64 -v
 
 # Install Keycloak
 COPY --from=keycloak --chown=$SERVICE_NAME /opt/keycloak/ $APPLICATION_DIRECTORY/keycloak/
@@ -68,8 +67,6 @@ COPY --from=keycloak --chown=$SERVICE_NAME /opt/keycloak/ $APPLICATION_DIRECTORY
 ADD --chown=$SERVICE_NAME h2 ./keycloak/data/h2/
 RUN ./keycloak/bin/kc.sh build
 
-
-COPY --from=poetry-base $APPLICATION_DIRECTORY .
 COPY --chown=$SERVICE_NAME . .
 
 #COPY --from=keycloak /opt/jboss/ /opt/jboss/
