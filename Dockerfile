@@ -1,9 +1,8 @@
 # Download & extract oauth2-proxy
 FROM alpine AS oauth2-proxy-base
-ENV OAUTH2_PROXY_VERSION="7.4.0"
+ENV OAUTH2_PROXY_VERSION="7.6.0"
 ENV OAUTH2_PROXY_DIR="/oauth2-proxy"
 
-# TODO tie more explicitly to supervisord.conf
 RUN mkdir -p $OAUTH2_PROXY_DIR
 RUN wget https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v$OAUTH2_PROXY_VERSION/oauth2-proxy-v$OAUTH2_PROXY_VERSION.linux-arm64.tar.gz \
     && tar xvzf oauth2-proxy-v$OAUTH2_PROXY_VERSION.linux-arm64.tar.gz \
@@ -20,7 +19,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
     PYSETUP_PATH="/opt/pysetup" \
-    # Used to coordinate with Poetry
     VENV_PATH="/opt/pysetup/.venv" 
 
 ENV PATH="$VENV_PATH/bin:$PATH"
@@ -71,7 +69,6 @@ FROM python-base AS application
 ENV KEYCLOAK_ADMIN=admin \
     KEYCLOAK_ADMIN_PASSWORD=admin
 
-# Copy Oauth2-proxy stuff
 COPY --from=oauth2-proxy-base --chown=$SERVICE_NAME "/oauth2-proxy" .
 
 WORKDIR $APPLICATION_DIRECTORY
