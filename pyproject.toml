@@ -15,7 +15,7 @@ supervisor = "~4.2"
 
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.4.10"
+ruff = "~0.5"
 
 [build-system]
 requires = ["poetry-core"]
